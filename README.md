@@ -1,58 +1,56 @@
+# XWiki in AWS
 
-# Welcome to your CDK Python project!
+## How to run
 
-This is a blank project for CDK development with Python.
+### Install cdk
+* ```brew install node``` if NodeJS not installed
+* ```npm install -g aws-cdk```
+* ```pip install -r requirements```
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+### Test
+```python -m pytest```
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+### Deploy
+Go to the root directory of the repo and run
+```cdk deploy```
+This stack is Account Agnostic so it can be run with any credentials
 
-To manually create a virtualenv on MacOS and Linux:
+This is an AWS showcase task to deploy XWiki Knowledge management system in AWS
 
-```
-$ python3 -m venv .venv
-```
+![Architecture](docs/architecture.png "XWiki in AWS Architecture")
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
+## Key Components
 
-```
-$ source .venv/bin/activate
-```
+### VPC
 
-If you are a Windows platform, you would activate the virtualenv like this:
+The VPC configured to have:
 
-```
-% .venv\Scripts\activate.bat
-```
+* Public
+* Private with NAT (with egress access to the Internet)
+* Private Isolated Subnet
+* Multiple AZ supported for High Availability
 
-Once the virtualenv is activated, you can install the required dependencies.
+### ECS Cluster
 
-```
-$ pip install -r requirements.txt
-```
+The Cluster that is used to spin up the ECS service and can be reused for other services
 
-At this point you can now synthesize the CloudFormation template for this code.
+### Public ALB
 
-```
-$ cdk synth
-```
+It created Public ALB with open access to 443 (HTTPS) and 80 (HTTP) ports
+The ALB is used to create Target Groups to ECS Fargate Service
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+### RDS
+XWiki requires Postgres or MySql Db. In this case I use Postgres which is placed in Isolated Subnet.
+AWS CDK creates Secret Manager Secret to manage credentials.
+Rotation can be set up in addition, but left out for simplicity.
 
-## Useful commands
+### EFS
+XWiki needs static storage. I use EFS and mount the filesystem to ECS task. EFS is located in Isolated Subnet
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+### ECS Service
+Finally,  XWiki provides official Docker image to be used. I Create ECS Service, mount EFS Volume, provide RDS credentials through Secret Manager and AWS CDK creates Target groups, ALB Listener rules.
+ECS Tasks are located in Private NAT Subnets because I use Docker Hub to download the image so ECS Agent must have outgoing Internet access.
 
-Enjoy!
+### ACM
+In addition, the HTTPS connection can be set up using existing Route53 Zone.
+AWS CDK will create the certificate and Route53 record.
