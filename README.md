@@ -8,6 +8,7 @@
 * ```pip install -r requirements```
 
 ### Test
+Go to the root directory of the repo and run
 ```python -m pytest```
 
 ### Deploy
